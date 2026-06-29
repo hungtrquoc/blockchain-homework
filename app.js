@@ -946,7 +946,7 @@ async function visualizeMerkle() {
 async function auditTransaction() {
     const rawInput = document.getElementById('tx-input').value;
     const txs = rawInput.split(',').map(tx => tx.trim());
-    const targetTx = document.getElementById('audit-tx').value.trim(); // ✅ đúng ID
+    const targetTx = document.getElementById('audit-tx').value.trim(); 
 
     const resultEl = document.getElementById('audit-result');
     resultEl.innerText = "Đang kiểm toán...";
@@ -966,18 +966,6 @@ async function auditTransaction() {
     resultEl.innerText = data.msg;
 }
 
-// DEMO 2: Audit
-async function auditTransaction() {
-    const txs = document.getElementById('tx-input').value.split(',').map(t => t.trim());
-    const target = document.getElementById('audit-target').value.trim();
-    const resultEl = document.getElementById('audit-result');
-    
-    resultEl.innerText = "Đang thực hiện kiểm toán...";
-    const data = await handleApiCall('audit', txs, target);
-    
-    resultEl.innerText = data.msg;
-    resultEl.style.color = data.verified ? 'green' : 'red';
-}
 
 // ==========================================
 // 8. LOGIC CHO BÀI 2
