@@ -726,6 +726,18 @@ async function withdrawVault() {
 // 5. GIAO DIỆN NÂNG CẤP (DATA)
 // ==========================================
 const homeworkData = {
+    hw1: {
+        prompt: `1. Build a Merkle tree from 8 transactions.<br>2. Generate inclusion proof.<br>3. Verify proof.<br>4. Implement <code>fintech_audit.py</code>`,
+        demo: `<p>Mã băm được sử dụng: <strong>Double SHA-256</strong> (Chuẩn Bitcoin).</p>`,
+        explain: `<p><strong>Giải pháp:</strong> Code xây dựng Merkle Tree, tự động sinh path, và xác thực.</p>`,
+        file: 'hw1.py', lang: 'python'
+    },
+    hw2: {
+        prompt: `1. Fetch Bitcoin Pizza TX.<br>2. Decode UTXO.<br>3. Implement <code>stablecoin_reserve.py</code>.<br>4. Detect insolvency`,
+        demo: `<button onclick="fetchBitcoinTx()" style="padding:5px;">Fetch API Thực Tế</button><pre id="api-result" style="margin-top:10px;">Chờ fetch...</pre>`,
+        explain: `<p><strong>Giải pháp:</strong> Triển khai Merkle Sum Tree (Lưu balance tại các node) để ứng dụng vào Proof of Reserves.</p>`,
+        file: 'hw2.py', lang: 'python'
+    },
     hw3: {
         prompt: `Write an Ethereum smart contract using Solidity running on Remix.`,
         demo: `
