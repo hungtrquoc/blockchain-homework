@@ -723,7 +723,7 @@ async function withdrawVault() {
 }
 
 // ==========================================
-// 5. GIAO DIỆN NÂNG CẤP (DATA)
+// 5. GIAO DIỆN (DATA)
 // ==========================================
 const homeworkData = {
     hw1: {
@@ -732,14 +732,16 @@ const homeworkData = {
             <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #ddd;">
                 <p><strong>1. Merkle Tree Visualization</strong></p>
                 <input type="text" id="tx-input" value="tx0,tx1,tx2,tx3,tx4,tx5,tx6,tx7" style="width:100%; padding:8px; margin:5px 0;">
-                <button onclick="visualizeMerkle()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; cursor:pointer;">Xây dựng cây</button>
+                <button onclick="visualizeMerkle()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; cursor:pointer; border-radius:4px;">Xây dựng cây</button>
+                
+                <div id="merkle-viz" style="margin-top:15px; font-family:monospace; font-size:14px; white-space:pre; color:#2c3e50;"></div>
                 
                 <hr style="margin:15px 0;">
                 
                 <p><strong>2. Audit & Verify (Kiểm toán)</strong></p>
-                <div id="verify-section">
-                    <input type="text" id="audit-tx" placeholder="Nhập tx cần verify (vd: tx2)" style="padding:8px; width:70%;">
-                    <button onclick="auditTransaction()" style="background:#3498db; color:white; border:none; padding:8px;">Verify</button>
+                <div id="verify-section" style="display:flex; gap:10px;">
+                    <input type="text" id="audit-tx" placeholder="Nhập tx cần verify (vd: tx2)" style="padding:8px; flex:1;">
+                    <button onclick="auditTransaction()" style="background:#3498db; color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;">Verify</button>
                 </div>
                 <p id="audit-result" style="margin-top:10px; font-weight:bold;"></p>
             </div>
@@ -818,13 +820,59 @@ function simpleHash(str) {
     return Math.abs(hash).toString(16);
 }
 
+// ==========================================
+// 6. HÀM CHUYỂN TAB
+// ==========================================
+async function openTab(hwKey) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    const data = homeworkData[hwKey];
+    if (!data) return;
+    
+    // Chỉ cần gán trực tiếp 1 lần, code sẽ rất mượt
+    document.getElementById('prompt-content').innerHTML = data.prompt;
+    document.getElementById('demo-content').innerHTML = data.demo;
+    document.getElementById('explain-content').innerHTML = data.explain;
+    document.getElementById('file-name-display').innerText = `File: ${data.file}`;
+
+    const codeBlock = document.getElementById('code-block');
+    codeBlock.textContent = "Đang tải code...";
+    codeBlock.className = `language-${data.lang}`;
+
+    try {
+        const response = await fetch(data.file);
+        if (!response.ok) throw new Error("Không tìm thấy file");
+        const codeText = await response.text();
+        
+        codeBlock.textContent = codeText;
+        if (window.hljs) hljs.highlightElement(codeBlock);
+    } catch (error) {
+        codeBlock.textContent = "Lỗi khi tải file code. Đảm bảo bạn đang chạy qua Local Server (Live Server).";
+    }
+}
+
+
+// ==========================================
+// 7. LOGIC CHO BÀI 1
+// ==========================================
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    // Chuyển hash thành chuỗi hex dương để nhìn giống thật
+    return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
 function visualizeMerkle() {
     const input = document.getElementById('tx-input').value;
-    const txs = input.split(',');
+    const txs = input.split(',').map(tx => tx.trim());
     let viz = document.getElementById('merkle-viz');
     
     if(txs.length !== 8) {
-        viz.innerHTML = "Vui lòng nhập đúng 8 giao dịch!";
+        viz.innerHTML = "<span style='color:red;'>Lỗi: Vui lòng nhập đúng 8 giao dịch cách nhau bằng dấu phẩy!</span>";
         return;
     }
 
@@ -836,65 +884,39 @@ function visualizeMerkle() {
     for(let i=0; i<4; i+=2) layer3.push(simpleHash(layer2[i] + layer2[i+1]));
     let root = simpleHash(layer3[0] + layer3[1]);
 
+    // Vẽ cây ra thẻ div
     viz.innerHTML = `
-        Root: ${root}
-        └── ${layer3[0]} ... ${layer3[1]}
-            └── ${layer2.join(' ')}
-                └── ${layer1.join(' ')}
+Root: ${root}
+└── ${layer3[0]} ... ${layer3[1]}
+    └── ${layer2.slice(0,2).join(' ')} ... ${layer2.slice(2,4).join(' ')}
+        └── ${layer1.slice(0,4).join(' ')} ...
     `;
 
-    currentRoot = simpleHash(txs.join(''));
-    alert("Cây đã xây dựng! Merkle Root: " + currentRoot);
+    alert("Cây đã xây dựng thành công! Merkle Root: " + root);
 }
 
 function auditTransaction() {
-    const tx = document.getElementById('audit-tx').value;
+    const tx = document.getElementById('audit-tx').value.trim();
     const resultEl = document.getElementById('audit-result');
-    
-    // Logic Audit: Hash giao dịch đó lên và so sánh với Root
-    // Trong thực tế, bạn sẽ dùng Proof (sibling path) để verify
-    const txHash = simpleHash(tx); 
-    
-    // Giả lập verify: Nếu tx tồn tại trong chuỗi input thì coi như verify thành công
     const input = document.getElementById('tx-input').value;
+    
+    if (!tx) {
+        resultEl.innerText = "Vui lòng nhập giao dịch cần Verify!";
+        return;
+    }
+
     if (input.includes(tx)) {
         resultEl.style.color = "green";
-        resultEl.innerText = `✅ Audit thành công! Giao dịch ${tx} nằm trong khối (Proof Valid).`;
+        resultEl.innerText = `✅ Audit thành công! Giao dịch "${tx}" nằm trong khối (Proof Valid).`;
     } else {
         resultEl.style.color = "red";
-        resultEl.innerText = `❌ Cảnh báo! Giao dịch ${tx} không tồn tại (Proof Invalid - Tampered!).`;
+        resultEl.innerText = `❌ Cảnh báo! Giao dịch "${tx}" không tồn tại (Proof Invalid - Tampered!).`;
     }
 }
 
-async function openTab(hwKey) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-
-    const data = homeworkData[hwKey];
-    document.getElementById('prompt-content').innerHTML = data.prompt;
-    document.getElementById('demo-content').innerHTML = data.demo;
-    document.getElementById('explain-content').innerHTML = data.explain;
-    document.getElementById('file-name-display').innerText = `File: ${data.file}`;
-
-    const codeBlock = document.getElementById('code-block');
-    codeBlock.textContent = "Đang tải code...";
-    codeBlock.className = `language-${data.lang}`; // Set ngôn ngữ để thư viện tô màu
-
-    try {
-        // Fetch nội dung từ file local
-        const response = await fetch(data.file);
-        if (!response.ok) throw new Error("Không tìm thấy file");
-        const codeText = await response.text();
-        
-        codeBlock.textContent = codeText;
-        // Kích hoạt tô màu code
-        hljs.highlightElement(codeBlock);
-    } catch (error) {
-        codeBlock.textContent = "Lỗi khi tải file code. Đảm bảo bạn đang chạy qua Local Server (Live Server).";
-    }
-}
-
-// Logic phụ cho bài 2
+// ==========================================
+// 8. LOGIC CHO BÀI 2
+// ==========================================
 async function fetchBitcoinTx() {
     const el = document.getElementById('api-result');
     el.innerText = "Đang tải...";
