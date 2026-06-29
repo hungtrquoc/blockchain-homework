@@ -1,3 +1,7 @@
 {
-  "version": 2
+  "functions": {
+    "api/hw1.py": {
+      "runtime": "python3.12"
+    }
+  }
 }
