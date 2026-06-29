@@ -944,27 +944,24 @@ async function visualizeMerkle() {
 
 // 2. Dùng cho Demo 2: Audit
 async function auditTransaction() {
-
     const rawInput = document.getElementById('tx-input').value;
     const txs = rawInput.split(',').map(tx => tx.trim());
-    const targetTx = document.getElementById('audit-tx').value.trim();
-    
+    const targetTx = document.getElementById('audit-tx').value.trim(); // ✅ đúng ID
+
     const resultEl = document.getElementById('audit-result');
     resultEl.innerText = "Đang kiểm toán...";
-
+    
     const response = await fetch('/api/hw1', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             action: 'audit', 
-            txs: txs,           // Dữ liệu gốc để build cây
-            target_tx: targetTx  // Dữ liệu cần verify
+            txs: txs,
+            target_tx: targetTx
         })
     });
     
     const data = await response.json();
-    
-    // Hiển thị kết quả
     resultEl.style.color = data.verified ? 'green' : 'red';
     resultEl.innerText = data.msg;
 }
