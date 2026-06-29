@@ -747,7 +747,7 @@ const homeworkData = {
             </div>
         `,
         explain: `<p><strong>Giải pháp:</strong> Code xây dựng Merkle Tree, tự động sinh path, và xác thực. Xem chi tiết thuật toán băm kép bên dưới.</p>`,
-        file: 'hw1.py',
+        file: 'api/hw1.py',
         lang: 'python'
     },
     hw2: {
@@ -822,7 +822,7 @@ const homeworkData = {
             </div>
         `,
         explain: `<p><strong>Giải pháp:</strong> Triển khai Merkle Sum Tree (Lưu balance tại các node) để ứng dụng vào Proof of Reserves (PoR). Thuật toán đảm bảo số dư của nút cha luôn bằng tổng 2 nút con. Nếu cấu trúc sổ cái bị can thiệp (Tampered), Root Hash sẽ thay đổi và đánh dấu sự kiện mất khả năng thanh khoản.</p>`,
-        file: 'hw2.py',
+        file: 'api/hw2.py',
         lang: 'python'
     },
     hw3: {
