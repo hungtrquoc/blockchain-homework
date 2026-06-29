@@ -727,10 +727,18 @@ async function withdrawVault() {
 // ==========================================
 const homeworkData = {
     hw1: {
-        prompt: `1. Build a Merkle tree from 8 transactions.<br>2. Generate inclusion proof.<br>3. Verify proof.<br>4. Implement <code>fintech_audit.py</code>`,
-        demo: `<p>Mã băm được sử dụng: <strong>Double SHA-256</strong> (Chuẩn Bitcoin).</p>`,
-        explain: `<p><strong>Giải pháp:</strong> Code xây dựng Merkle Tree, tự động sinh path, và xác thực.</p>`,
-        file: 'hw1.py', lang: 'python'
+        prompt: '1. Build a Merkle tree from 8 transactions.\n2. Generate inclusion proof.\n3. Verify proof.\n4. Implement fintech_audit.py',
+        demo: `
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px; border:1px solid #ddd;">
+                <p><strong>Trình tạo Merkle Tree (8 giao dịch)</strong></p>
+                <input type="text" id="tx-input" value="tx1,tx2,tx3,tx4,tx5,tx6,tx7,tx8" style="width:100%; padding:8px; margin:10px 0;">
+                <button onclick="visualizeMerkle()" style="background:#2ecc71; color:white; border:none; padding:8px 15px; cursor:pointer;">Tạo Merkle Root</button>
+                <div id="merkle-viz" style="margin-top:15px; font-family:monospace; font-size:12px; white-space:pre;"></div>
+            </div>
+        `,
+        explain: `<p><strong>Giải pháp:</strong> Code xây dựng Merkle Tree, tự động sinh path, và xác thực. Xem chi tiết thuật toán băm kép bên dưới.</p>`,
+        file: 'hw1.py',
+        lang: 'python'
     },
     hw2: {
         prompt: `1. Fetch Bitcoin Pizza TX.<br>2. Decode UTXO.<br>3. Implement <code>stablecoin_reserve.py</code>.<br>4. Detect insolvency`,
@@ -792,6 +800,41 @@ const homeworkData = {
     }
 };
 
+// Hàm hỗ trợ băm đơn giản để demo trên UI (JS không dùng SHA256 trực tiếp giống Python)
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash).toString(16);
+}
+
+function visualizeMerkle() {
+    const input = document.getElementById('tx-input').value;
+    const txs = input.split(',');
+    let viz = document.getElementById('merkle-viz');
+    
+    if(txs.length !== 8) {
+        viz.innerHTML = "Vui lòng nhập đúng 8 giao dịch!";
+        return;
+    }
+
+    // Mô phỏng các lớp của Merkle Tree
+    let layer1 = txs.map(tx => simpleHash(tx));
+    let layer2 = [];
+    for(let i=0; i<8; i+=2) layer2.push(simpleHash(layer1[i] + layer1[i+1]));
+    let layer3 = [];
+    for(let i=0; i<4; i+=2) layer3.push(simpleHash(layer2[i] + layer2[i+1]));
+    let root = simpleHash(layer3[0] + layer3[1]);
+
+    viz.innerHTML = `
+        Root: ${root}
+        └── ${layer3[0]} ... ${layer3[1]}
+            └── ${layer2.join(' ')}
+                └── ${layer1.join(' ')}
+    `;
+}
 
 async function openTab(hwKey) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
