@@ -968,117 +968,167 @@ async function auditTransaction() {
 
 
 // ==========================================
-// 8. LOGIC CHO BÀI 2
+// LOGIC CHO BÀI 2 – Gọi BE /api/hw2
 // ==========================================
 
+// Dữ liệu sổ cái gốc (ground truth – không thay đổi)
+const TRUE_ACCOUNTS = [
+    { label: "A", balance: 1000 },
+    { label: "B", balance: 500  },
+    { label: "C", balance: 2500 },
+];
+
+// -----------------------------------------------
+// Task 1 & 2: Fetch Bitcoin TX + Decode UTXO
+// -----------------------------------------------
 async function fetchBitcoinTx() {
-    const txid = document.getElementById('tx-input-api').value.trim();
-    const loadingEl = document.getElementById('api-loading');
-    const container = document.getElementById('api-result-container');
-    const summary = document.getElementById('tx-summary');
-    const utxoBody = document.getElementById('utxo-body');
+    const txid        = document.getElementById('tx-input-api').value.trim();
+    const loadingEl   = document.getElementById('api-loading');
+    const container   = document.getElementById('api-result-container');
+    const summaryEl   = document.getElementById('tx-summary');
+    const utxoBody    = document.getElementById('utxo-body');
 
-    if (!txid) {
-        alert("Vui lòng nhập mã TxID!");
-        return;
-    }
+    if (!txid) { alert("Vui lòng nhập mã TxID!"); return; }
 
-    // Reset giao diện khi bắt đầu fetch
+    // Reset UI
     container.style.display = 'none';
     loadingEl.style.display = 'block';
-    loadingEl.style.color = '#7f8c8d';
-    loadingEl.innerText = `Đang kết nối API mempool.space cho TX: ${txid.substring(0, 8)}...`;
-    
+    loadingEl.style.color   = '#7f8c8d';
+    loadingEl.innerText     = `Đang xử lý TX: ${txid.substring(0, 8)}...`;
+
     try {
-        const res = await fetch(`https://mempool.space/api/tx/${txid}`);
-        
-        if (!res.ok) throw new Error("Không tìm thấy giao dịch này hoặc lỗi mạng!");
-        
+        const res = await fetch('/api/hw2', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ action: 'fetch_tx', txid }),
+        });
+
         const data = await res.json();
-        
-        // 1. Đổ dữ liệu vào Summary Card
-        summary.innerHTML = `
+        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+
+        const { summary, utxos } = data;
+
+        // --- Summary card ---
+        summaryEl.innerHTML = `
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <strong>Mã giao dịch (TxID):</strong> <span style="color:#3498db; font-family:monospace;">${data.txid}</span>
+                <strong>Mã giao dịch (TxID):</strong>
+                <span style="color:#3498db; font-family:monospace; font-size:11px;">${summary.txid}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <strong>Phí giao dịch (Fee):</strong> <span style="color:#e74c3c; font-weight:bold; font-size:14px;">${data.fee.toLocaleString()} Satoshis</span>
+                <strong>Phí giao dịch (Fee):</strong>
+                <span style="color:#e74c3c; font-weight:bold;">${summary.fee.toLocaleString()} Satoshis</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <strong>Trạng thái (Status):</strong> <span>${data.status.confirmed ? `✅ Đã xác nhận (Block: ${data.status.block_height})` : '⏳ Unconfirmed'}</span>
+                <strong>Trạng thái:</strong>
+                <span>${summary.confirmed
+                    ? `✅ Đã xác nhận (Block: ${summary.block_height})`
+                    : '⏳ Unconfirmed'}</span>
             </div>
             <div style="display:flex; justify-content:space-between;">
-                <strong>Số lượng UTXO (Đầu ra):</strong> <span>${data.vout.length} Output(s)</span>
-            </div>
-        `;
+                <strong>Số lượng UTXO (Outputs):</strong>
+                <span>${summary.vout_count} Output(s)</span>
+            </div>`;
 
-        // 2. Đổ dữ liệu vào UTXO Table
-        utxoBody.innerHTML = ''; // Clear bảng cũ
-        data.vout.forEach((out, idx) => {
-            // Có những UTXO (như OP_RETURN) không có địa chỉ ví nhận
-            const address = out.scriptpubkey_address || '<span style="color:#e74c3c; font-style:italic;">N/A (Data OP_RETURN)</span>';
-            
-            // Lấy mã ASM nguyên thủy, cắt ngắn bớt để bảng không bị vỡ layout, gắn tooltip để xem full
-            const rawAsm = out.scriptpubkey_asm || '';
-            const displayAsm = rawAsm.length > 30 ? rawAsm.substring(0, 30) + '...' : rawAsm;
+        // --- UTXO table ---
+        utxoBody.innerHTML = '';
+        utxos.forEach(out => {
+            const address    = out.address
+                ?? '<span style="color:#e74c3c; font-style:italic;">N/A (OP_RETURN)</span>';
+            const rawAsm     = out.script_asm || '';
+            const displayAsm = rawAsm.length > 30 ? rawAsm.substring(0, 30) + '…' : rawAsm;
 
             utxoBody.innerHTML += `
                 <tr style="border-bottom:1px solid #ecf0f1;">
-                    <td style="padding:10px 8px; border:1px solid #ccc; text-align:center; font-weight:bold;">${idx}</td>
-                    <td style="padding:10px 8px; border:1px solid #ccc; font-family:monospace; color:#2980b9;">${address}</td>
-                    <td style="padding:10px 8px; border:1px solid #ccc; font-weight:bold; color:#27ae60;">${out.value.toLocaleString()}</td>
-                    <td style="padding:10px 8px; border:1px solid #ccc; font-weight:bold; text-transform:uppercase; font-size:11px;">
-                        <span style="background:#ecf0f1; padding:3px 6px; border-radius:4px;">${out.scriptpubkey_type}</span>
+                    <td style="padding:10px 8px; border:1px solid #ccc; text-align:center; font-weight:bold;">${out.index}</td>
+                    <td style="padding:10px 8px; border:1px solid #ccc; font-family:monospace; color:#2980b9; font-size:11px;">${address}</td>
+                    <td style="padding:10px 8px; border:1px solid #ccc; font-weight:bold; color:#27ae60;">${out.value_satoshi.toLocaleString()}</td>
+                    <td style="padding:10px 8px; border:1px solid #ccc; text-transform:uppercase; font-size:11px;">
+                        <span style="background:#ecf0f1; padding:3px 6px; border-radius:4px;">${out.script_type}</span>
                     </td>
                     <td style="padding:10px 8px; border:1px solid #ccc; font-family:monospace; font-size:10px; color:#7f8c8d;" title="${rawAsm}">
                         ${displayAsm}
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
 
-        // Ẩn loading, show container kết quả
         loadingEl.style.display = 'none';
         container.style.display = 'block';
 
     } catch (err) {
-        loadingEl.style.color = "red";
-        loadingEl.innerText = "Lỗi hệ thống: " + err.message;
+        loadingEl.style.color  = 'red';
+        loadingEl.innerText    = '❌ Lỗi: ' + err.message;
     }
 }
 
-function simulatePoR() {
-    // 1. Tính toán cây trung thực (Thực tế)
-    const trueA = 1000, trueB = 500, trueC = 2500;
-    const trueTotal = trueA + trueB + trueC;
-    // Băm gộp Balance và Hash của các lá
-    const trueRootHash = simpleHash(`Root:${trueTotal}:` + simpleHash(`A:${trueA}`) + simpleHash(`B:${trueB}`) + simpleHash(`C:${trueC}`));
+// -----------------------------------------------
+// Task 3 & 4: Merkle Sum Tree – PoR / Insolvency
+// -----------------------------------------------
+async function simulatePoR() {
+    const claimedAccounts = [
+        { label: "A", balance: parseInt(document.getElementById('bal-a').value) || 0 },
+        { label: "B", balance: parseInt(document.getElementById('bal-b').value) || 0 },
+        { label: "C", balance: parseInt(document.getElementById('bal-c').value) || 0 },
+    ];
 
-    // 2. Tính toán cây bị can thiệp (Dữ liệu từ Input khai báo)
-    const claimedA = parseInt(document.getElementById('bal-a').value) || 0;
-    const claimedB = parseInt(document.getElementById('bal-b').value) || 0;
-    const claimedC = parseInt(document.getElementById('bal-c').value) || 0;
-    const claimedTotal = claimedA + claimedB + claimedC;
-    const claimedRootHash = simpleHash(`Root:${claimedTotal}:` + simpleHash(`A:${claimedA}`) + simpleHash(`B:${claimedB}`) + simpleHash(`C:${claimedC}`));
+    const resEl       = document.getElementById('por-result');
+    resEl.innerHTML   = '<span style="color:#7f8c8d;">Đang kiểm toán...</span>';
 
-    // 3. Xuất kết quả kiểm toán
-    const resEl = document.getElementById('por-result');
-    let html = `<strong style="color:#2c3e50;">Kết quả kiểm toán (Audit Log):</strong><br><br>`;
-    
-    html += `<span style="color:#7f8c8d;">[Cây Sổ cái gốc]</span> Tổng dự trữ: <strong>${trueTotal}</strong> | Root Hash: ${trueRootHash}<br>`;
-    html += `<span style="color:#7f8c8d;">[Cây Sàn cung cấp]</span> Tổng dự trữ: <strong>${claimedTotal}</strong> | Root Hash: ${claimedRootHash}<br><br>`;
+    try {
+        const res = await fetch('/api/hw2', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                action:           'simulate_por',
+                true_accounts:    TRUE_ACCOUNTS,
+                claimed_accounts: claimedAccounts,
+            }),
+        });
 
-    if (trueRootHash === claimedRootHash) {
-        html += `<div style="padding:10px; background:#e8f8f5; border-left:4px solid #2ecc71; color:#27ae60;">
-                    <strong>✅ PoR Hợp lệ!</strong> Mã băm khớp hoàn toàn. Sàn chứng minh được 100% tài sản dự trữ.
-                 </div>`;
-    } else {
-        html += `<div style="padding:10px; background:#fdedec; border-left:4px solid #e74c3c; color:#c0392b;">
-                    <strong>❌ CẢNH BÁO GIAN LẬN (Tamper Detected)!</strong><br>
-                    Mã băm không khớp. Sàn đã tự ý sửa đổi số dư của User để che giấu nợ. Tuyên bố mất khả năng thanh khoản (Insolvent).
-                 </div>`;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi không xác định');
+
+        const { valid, true_tree, claimed_tree, tampered_accounts } = data;
+
+        let html = `<strong style="color:#2c3e50;">Kết quả kiểm toán (Audit Log):</strong><br><br>`;
+
+        html += `<span style="color:#7f8c8d;">[Cây Sổ cái gốc]</span> 
+                 Tổng dự trữ: <strong>${true_tree.root_balance}</strong> | 
+                 Root Hash: <code style="font-size:11px;">${true_tree.root_hash.substring(0, 16)}…</code><br>`;
+
+        html += `<span style="color:#7f8c8d;">[Cây Sàn cung cấp]</span> 
+                 Tổng dự trữ: <strong>${claimed_tree.root_balance}</strong> | 
+                 Root Hash: <code style="font-size:11px;">${claimed_tree.root_hash.substring(0, 16)}…</code><br><br>`;
+
+        if (valid) {
+            html += `<div style="padding:10px; background:#e8f8f5; border-left:4px solid #2ecc71; color:#27ae60;">
+                        <strong>✅ PoR Hợp lệ!</strong> Mã băm khớp hoàn toàn. Sàn chứng minh được 100% tài sản dự trữ.
+                     </div>`;
+        } else {
+            // Hiển thị chi tiết các account bị tamper
+            let tamperedHtml = '';
+            if (tampered_accounts.length > 0) {
+                tamperedHtml = '<br><strong>Tài khoản bị sửa đổi:</strong><ul style="margin:5px 0;">' +
+                    tampered_accounts.map(t =>
+                        `<li>User <strong>${t.label}</strong>: 
+                         Thực tế <strong>${t.true_balance}</strong> → 
+                         Khai báo <strong>${t.claimed_balance}</strong> 
+                         (chênh lệch: <strong style="color:#e74c3c;">${t.diff > 0 ? '+' : ''}${t.diff}</strong>)</li>`
+                    ).join('') + '</ul>';
+            }
+
+            html += `<div style="padding:10px; background:#fdedec; border-left:4px solid #e74c3c; color:#c0392b;">
+                        <strong>❌ CẢNH BÁO GIAN LẬN (Tamper Detected)!</strong><br>
+                        Mã băm không khớp. Sàn đã sửa đổi số dư để che giấu nợ. 
+                        Tuyên bố mất khả năng thanh toán (Insolvent).
+                        ${tamperedHtml}
+                     </div>`;
+        }
+
+        resEl.innerHTML = html;
+
+    } catch (err) {
+        resEl.innerHTML = `<span style="color:red;">❌ Lỗi: ${err.message}</span>`;
     }
-    resEl.innerHTML = html;
 }
 
 
